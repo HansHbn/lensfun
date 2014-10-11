@@ -370,7 +370,79 @@ static Image *ApplyModifier (int modflags, bool reverse, Image *img,
     return img;
 }
 
+int work (lfDatabase *ldb, const lfLens *lens)
+{
+    Image *img = new Image ();
+    g_print ("~ Loading `%s' ... ", opts.Input);
+    if (!img->Open (opts.Input)) {
+        g_print ("\rERROR: failed to open file `%s'\n", opts.Input);
+        delete img;
+        ldb->Destroy();
+        return -1;
+    }
+    if (!img->LoadPNG ()) {
+        g_print ("\rERROR: failed to parse PNG data from file `%s'\n", opts.Input);
+        delete img;
+        ldb->Destroy();
+        return -1;
+    }
+    g_print ("done.\n~ Image size [%ux%u].\n", img->width, img->height);
 
+    lfModifier *mod = lfModifier::Create (lens, opts.Crop, img->width, img->height);
+    if (!mod) {
+        g_print ("\rWarning: failed to create modifier\n");
+        delete img;
+        ldb->Destroy();
+        return -1;
+    }
+    int modflags = mod->Initialize (
+        lens, LF_PF_U8, opts.Focal,
+        opts.Aperture, opts.Distance, opts.Scale, opts.TargetGeom,
+        opts.ModifyFlags, opts.Inverse);
+
+    g_print("~ Selected modifications: ");
+    if (modflags & LF_MODIFY_TCA)
+        g_print ("[tca]");
+    if (modflags & LF_MODIFY_VIGNETTING)
+        g_print ("[vign]");
+    if (modflags & LF_MODIFY_DISTORTION)
+        g_print ("[dist]");
+    if (modflags & LF_MODIFY_GEOMETRY)
+        g_print ("[geom]");
+    if (opts.Scale != 1.0)
+        g_print ("[scale]");
+    if (modflags==0)
+        g_print ("[NOTHING]");
+    g_print ("\n");
+
+    g_print("~ Run processing chain... ");
+
+    clock_t st;
+    clock_t xt = clock ();
+    while (xt == (st = clock ()))
+        ;
+
+    img = ApplyModifier (modflags, opts.Inverse, img, mod);
+
+    clock_t et = clock ();
+    g_print ("done (%.3g secs)\n", double (et - st) / CLOCKS_PER_SEC);
+
+    mod->Destroy ();
+
+    g_print ("~ Save output as `%s'...", opts.Output);
+    bool ok = img->SavePNG (opts.Output);
+
+    delete img;
+    ldb->Destroy ();
+
+    if (ok) {
+        g_print (" done\n");
+        return 0;
+    } else {
+        g_print (" FAILED\n");
+        return -1;
+    }
+}
 
 int main (int argc, char **argv)
 {
@@ -454,75 +526,5 @@ int main (int argc, char **argv)
                 opts.Crop, opts.Focal, opts.Aperture, opts.Distance);
     }
 
-    Image *img = new Image ();
-    g_print ("~ Loading `%s' ... ", opts.Input);
-    if (!img->Open (opts.Input)) {
-        g_print ("\rERROR: failed to open file `%s'\n", opts.Input);
-        delete img;
-        ldb->Destroy();
-        return -1;
-    }
-    if (!img->LoadPNG ()) {
-        g_print ("\rERROR: failed to parse PNG data from file `%s'\n", opts.Input);
-        delete img;
-        ldb->Destroy();
-        return -1;
-    }
-    g_print ("done.\n~ Image size [%ux%u].\n", img->width, img->height);
-
-    lfModifier *mod = lfModifier::Create (lens, opts.Crop, img->width, img->height);
-    if (!mod) {
-        g_print ("\rWarning: failed to create modifier\n");
-        delete img;
-        ldb->Destroy();
-        return -1;
-    }
-    int modflags = mod->Initialize (
-        lens, LF_PF_U8, opts.Focal,
-        opts.Aperture, opts.Distance, opts.Scale, opts.TargetGeom,
-        opts.ModifyFlags, opts.Inverse);
-
-    g_print("~ Selected modifications: ");
-    if (modflags & LF_MODIFY_TCA)
-        g_print ("[tca]");
-    if (modflags & LF_MODIFY_VIGNETTING)
-        g_print ("[vign]");
-    if (modflags & LF_MODIFY_DISTORTION)
-        g_print ("[dist]");
-    if (modflags & LF_MODIFY_GEOMETRY)
-        g_print ("[geom]");
-    if (opts.Scale != 1.0)
-        g_print ("[scale]");
-    if (modflags==0)
-        g_print ("[NOTHING]");
-    g_print ("\n");
-
-    g_print("~ Run processing chain... ");
-
-    clock_t st;
-    clock_t xt = clock ();
-    while (xt == (st = clock ()))
-        ;
-
-    img = ApplyModifier (modflags, opts.Inverse, img, mod);
-
-    clock_t et = clock ();
-    g_print ("done (%.3g secs)\n", double (et - st) / CLOCKS_PER_SEC);
-
-    mod->Destroy ();
-
-    g_print ("~ Save output as `%s'...", opts.Output);
-    bool ok = img->SavePNG (opts.Output);
-
-    delete img;
-    ldb->Destroy ();
-
-    if (ok) {
-        g_print (" done\n");
-        return 0;
-    } else {
-        g_print (" FAILED\n");
-        return -1;
-    }
-
+    return work (ldb, lens);
 }
