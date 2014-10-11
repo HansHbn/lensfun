@@ -53,10 +53,11 @@
  * contains the Alpha channel component, which is used in images
  * (that potentially have an alpha channel).
  */
+template<class T>
 struct RGBpixel
 {
   /// The red, green, blue and alpha components
-  unsigned char red, green, blue, alpha;
+  T red, green, blue, alpha;
   /// Constructor (initialize to zero, alpha to 255)
   RGBpixel () /* : red(0), green(0), blue(0), alpha(255) {} */
   { *(unsigned *)this = (unsigned)~RGB_MASK; }
@@ -65,7 +66,7 @@ struct RGBpixel
   /* : red (p.red), green (p.green), blue (p.blue), alpha (p.alpha) {} */
   { *(unsigned *)this = *(unsigned *)&p; }
   /// Initialize the pixel with some R/G/B value
-  RGBpixel (int r, int g, int b) :
+  RGBpixel (T r, T g, T b) :
     red (r), green (g), blue (b), alpha (255) {}
   /// Compare with an RGBpixel (including alpha value)
   bool operator == (const RGBpixel& p) const
@@ -78,13 +79,13 @@ struct RGBpixel
   bool eq (const RGBpixel& p) const
   { return ((*(unsigned *)this) & RGB_MASK) == ((*(unsigned *)&p) & RGB_MASK); }
   /// Get the pixel intensity
-  int Intensity ()
+  T Intensity ()
   { return (red + green + blue) / 3; }
   /// Assign given red/green/blue values to this pixel
-  void Set (const int r, const int g, const int b)
+  void Set (const T r, const T g, const T b)
   { red = r; green = g; blue = b; alpha = 255; }
   /// Assign given red/green/blue/alpha values to this pixel
-  void Set (const int r, const int g, const int b, const int a)
+  void Set (const T r, const T g, const T b, const T a)
   { red = r; green = g; blue = b; alpha = a; }
   void Set (const RGBpixel& p)
   /* : red (p.red), green (p.green), blue (p.blue), alpha (p.alpha) {} */

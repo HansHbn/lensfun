@@ -41,7 +41,7 @@ static struct
     float Focal;
     float Aperture;
     float Distance;
-    Image::InterpolationMethod Interpolation;
+    InterpolationMethod Interpolation;
     lfLensType TargetGeom;
     bool Verbose;
 } opts =
@@ -59,7 +59,7 @@ static struct
     0,
     0,
     1.0f,
-    Image::I_LANCZOS,
+    I_LANCZOS,
     LF_RECTILINEAR,
     false
 };
@@ -225,11 +225,11 @@ static bool ParseParameters(int argc, char **argv)
                 break;
             case 'I':
                 if (smartstreq (optarg, "nearest"))
-                    opts.Interpolation = Image::I_NEAREST;
+                    opts.Interpolation = I_NEAREST;
                 else if (smartstreq (optarg, "bilinear"))
-                    opts.Interpolation = Image::I_BILINEAR;
+                    opts.Interpolation = I_BILINEAR;
                 else if (smartstreq (optarg, "lanczos"))
-                    opts.Interpolation = Image::I_LANCZOS;
+                    opts.Interpolation = I_LANCZOS;
                 else {
                     DisplayUsage();
                     g_print ("\nUnknown interpolation method `%s'\n", optarg);
@@ -268,12 +268,12 @@ static bool ParseParameters(int argc, char **argv)
     return true;
 }
 
-
-static Image *ApplyModifier (int modflags, bool reverse, Image *img,
-                             const lfModifier *mod)
+template<class T>
+static Image<T> *ApplyModifier (int modflags, bool reverse, Image<T> *img,
+                                const lfModifier *mod)
 {
     // Create a new image where we will copy the modified image
-    Image *newimg = new Image ();
+    Image<T> *newimg = new Image<T> ();
     // Output image always equals input image size, although
     // this is not a requirement of the library, it's just a
     // limitation of the testbed.
@@ -294,7 +294,7 @@ static Image *ApplyModifier (int modflags, bool reverse, Image *img,
 
     for (int step = step_start; step != step_finish; step += step_delta)
     {
-        RGBpixel *dst = newimg->image;
+        RGBpixel<T> *dst = newimg->image;
         char *imgdata = (char *)img->image;
         bool ok = true;
 
@@ -334,7 +334,7 @@ static Image *ApplyModifier (int modflags, bool reverse, Image *img,
                     /* Colour correction: vignetting */
                     ok = mod->ApplyColorModification (imgdata, 0.0, y, img->width, 1,
                         LF_CR_4 (RED, GREEN, BLUE, UNKNOWN), 0);
-                    imgdata += img->width * 4;
+                    imgdata += img->width * 4 * sizeof(T);
                     break;
 
 #ifndef COMBINE_13
@@ -359,7 +359,7 @@ static Image *ApplyModifier (int modflags, bool reverse, Image *img,
         // to the next stage.
         if (ok && (step == 0 || step == 2))
         {
-            Image *tmp = newimg;
+            Image<T> *tmp = newimg;
             newimg = img;
             img = tmp;
         }
@@ -370,9 +370,10 @@ static Image *ApplyModifier (int modflags, bool reverse, Image *img,
     return img;
 }
 
+template<class T>
 int work (lfDatabase *ldb, const lfLens *lens)
 {
-    Image *img = new Image ();
+    Image<T> *img = new Image<T> ();
     g_print ("~ Loading `%s' ... ", opts.Input);
     if (!img->Open (opts.Input)) {
         g_print ("\rERROR: failed to open file `%s'\n", opts.Input);
@@ -396,7 +397,7 @@ int work (lfDatabase *ldb, const lfLens *lens)
         return -1;
     }
     int modflags = mod->Initialize (
-        lens, LF_PF_U8, opts.Focal,
+        lens, opts.PixelFormat, opts.Focal,
         opts.Aperture, opts.Distance, opts.Scale, opts.TargetGeom,
         opts.ModifyFlags, opts.Inverse);
 
@@ -526,5 +527,30 @@ int main (int argc, char **argv)
                 opts.Crop, opts.Focal, opts.Aperture, opts.Distance);
     }
 
-    return work (ldb, lens);
+    switch(opts.PixelFormat)
+    {
+        case LF_PF_U8:
+          return work<unsigned char> (ldb, lens);
+          break;
+
+        case LF_PF_U16:
+          return work<unsigned short> (ldb, lens);
+          break;
+
+        case LF_PF_U32:
+          return work<unsigned int> (ldb, lens);
+          break;
+
+        case LF_PF_F32:
+          return work<float> (ldb, lens);
+          break;
+
+        case LF_PF_F64:
+          return work<double> (ldb, lens);
+          break;
+
+        default:
+          ldb->Destroy();
+          return -1;
+    }
 }

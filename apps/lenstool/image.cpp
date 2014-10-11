@@ -39,21 +39,27 @@ template<typename T> static inline T square (T x)
     return x * x;
 }
 
-float *Image::lanczos_func = NULL;
-int Image::lanczos_func_use = 0;
+template<class T>
+float *Image<T>::lanczos_func = NULL;
 
-Image::Image () :
+template<class T>
+int Image<T>::lanczos_func_use = 0;
+
+template<class T>
+Image<T>::Image () :
     file (NULL), lanczos_func_in_use (false), image (NULL)
 {
 }
 
-Image::~Image ()
+template<class T>
+Image<T>::~Image ()
 {
     Close ();
     Free ();
 }
 
-bool Image::Open (const char *fName)
+template<class T>
+bool Image<T>::Open (const char *fName)
 {
     file = fopen (fName, "rb");
     if (!file)
@@ -66,7 +72,8 @@ bool Image::Open (const char *fName)
     return true;
 }
 
-void Image::Close ()
+template<class T>
+void Image<T>::Close ()
 {
     if (file)
     {
@@ -75,7 +82,8 @@ void Image::Close ()
     }
 }
 
-void Image::Free ()
+template<class T>
+void Image<T>::Free ()
 {
     delete [] image;
     image = NULL;
@@ -87,7 +95,8 @@ void Image::Free ()
     }
 }
 
-bool Image::LoadPNG ()
+template<class T>
+bool Image<T>::LoadPNG ()
 {
     png_structp png;
     png_infop info;
@@ -162,10 +171,10 @@ bool Image::LoadPNG ()
     png_read_update_info (png, info);
 
     // Allocate the memory to hold the image
-    image = new RGBpixel [(width = Width) * (height = Height)];
+    image = new RGBpixel<T> [(width = Width) * (height = Height)];
     if (!image)
         goto nomem;
-    exp_rowbytes = Width * sizeof (RGBpixel);
+    exp_rowbytes = Width * sizeof (RGBpixel<T>);
 
     rowbytes = png_get_rowbytes (png, info);
     if (rowbytes != exp_rowbytes)
@@ -203,7 +212,8 @@ bool Image::LoadPNG ()
 static inline int isqr (int x)
 { return x * x; }
 
-bool Image::SavePNG (const char *fName)
+template<class T>
+bool Image<T>::SavePNG (const char *fName)
 {
     /* Remove the file in the case it exists and it is a link */
     unlink (fName);
@@ -248,7 +258,7 @@ bool Image::SavePNG (const char *fName)
      */
     int colortype, rowlen, bits;
     colortype = PNG_COLOR_TYPE_RGB_ALPHA;
-    rowlen = width * sizeof (RGBpixel);
+    rowlen = width * sizeof (RGBpixel<T>);
     bits = 8;
 
     png_set_IHDR (png, info, width, height, bits, colortype,
@@ -280,7 +290,7 @@ bool Image::SavePNG (const char *fName)
      * use the first method if you aren't handling interlacing yourself.
      */
     png_bytep *row_pointers = new png_bytep [height];
-    unsigned char *ImageData = (unsigned char *)image;
+    T *ImageData = (T *)image;
     for (unsigned i = 0; i < height; i++)
         row_pointers [i] = ImageData + i * rowlen;
 
@@ -303,13 +313,15 @@ bool Image::SavePNG (const char *fName)
     return true;
 }
 
-void Image::Resize (unsigned newwidth, unsigned newheight)
+template<class T>
+void Image<T>::Resize (unsigned newwidth, unsigned newheight)
 {
     Free ();
-    image = new RGBpixel [(width = newwidth) * (height = newheight)];
+    image = new RGBpixel<T> [(width = newwidth) * (height = newheight)];
 }
 
-void Image::InitInterpolation (InterpolationMethod method)
+template<class T>
+void Image<T>::InitInterpolation (InterpolationMethod method)
 {
     switch (method)
     {
@@ -358,54 +370,59 @@ void Image::InitInterpolation (InterpolationMethod method)
 
 // --- // Nearest interpolation // --- //
 
-unsigned char Image::GetR_n (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetR_n (Image *This, float x, float y)
 {
     unsigned xi = unsigned (x + 0.5);
     unsigned yi = unsigned (y + 0.5);
     if (xi >= This->width || yi >= This->height)
         return 0;
 
-    RGBpixel *p = This->image + yi * This->width + xi;
+    RGBpixel<T> *p = This->image + yi * This->width + xi;
     return p->red;
 }
 
-unsigned char Image::GetG_n (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetG_n (Image *This, float x, float y)
 {
     unsigned xi = unsigned (x + 0.5);
     unsigned yi = unsigned (y + 0.5);
     if (xi >= This->width || yi >= This->height)
         return 0;
 
-    RGBpixel *p = This->image + yi * This->width + xi;
+    RGBpixel<T> *p = This->image + yi * This->width + xi;
     return p->green;
 }
 
-unsigned char Image::GetB_n (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetB_n (Image *This, float x, float y)
 {
     unsigned xi = unsigned (x + 0.5);
     unsigned yi = unsigned (y + 0.5);
     if (xi >= This->width || yi >= This->height)
         return 0;
 
-    RGBpixel *p = This->image + yi * This->width + xi;
+    RGBpixel<T> *p = This->image + yi * This->width + xi;
     return p->blue;
 }
 
-void Image::Get_n (Image *This, RGBpixel &out, float x, float y)
+template<class T>
+void Image<T>::Get_n (Image *This, RGBpixel<T> &out, float x, float y)
 {
     unsigned xi = unsigned (x + 0.5);
     unsigned yi = unsigned (y + 0.5);
     if (xi >= This->width || yi >= This->height)
         return;
 
-    RGBpixel *p = This->image + yi * This->width + xi;
+    RGBpixel<T> *p = This->image + yi * This->width + xi;
     out = *p;
 }
 
 
 // --- // Bi-linear interpolation // --- //
 
-unsigned char Image::GetR_b (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetR_b (Image *This, float x, float y)
 {
     // linear interpolation
     unsigned xi = unsigned (x);
@@ -416,8 +433,8 @@ unsigned char Image::GetR_b (Image *This, float x, float y)
     unsigned dx = unsigned ((x - trunc (x)) * 256);
     unsigned dy = unsigned ((y - trunc (y)) * 256);
 
-    RGBpixel *p0 = This->image + yi * This->width + xi;
-    RGBpixel *p1 = p0 + This->width;
+    RGBpixel<T> *p0 = This->image + yi * This->width + xi;
+    RGBpixel<T> *p1 = p0 + This->width;
 
     unsigned k1, k2;
     k1 = 256 * p0 [0].red   + dx * (int (p0 [1].red  ) - int (p0 [0].red  ));
@@ -425,7 +442,8 @@ unsigned char Image::GetR_b (Image *This, float x, float y)
     return (256 * k1 + dy * (k2 - k1)) >> 16;
 }
 
-unsigned char Image::GetG_b (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetG_b (Image *This, float x, float y)
 {
     // linear interpolation
     unsigned xi = int (x);
@@ -436,8 +454,8 @@ unsigned char Image::GetG_b (Image *This, float x, float y)
     unsigned dx = unsigned ((x - trunc (x)) * 256);
     unsigned dy = unsigned ((y - trunc (y)) * 256);
 
-    RGBpixel *p0 = This->image + yi * This->width + xi;
-    RGBpixel *p1 = p0 + This->width;
+    RGBpixel<T> *p0 = This->image + yi * This->width + xi;
+    RGBpixel<T> *p1 = p0 + This->width;
 
     unsigned k1, k2;
     k1 = 256 * p0 [0].green + dx * (int (p0 [1].green) - int (p0 [0].green));
@@ -445,7 +463,8 @@ unsigned char Image::GetG_b (Image *This, float x, float y)
     return (256 * k1 + dy * (k2 - k1)) >> 16;
 }
 
-unsigned char Image::GetB_b (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetB_b (Image *This, float x, float y)
 {
     // linear interpolation
     unsigned xi = int (x);
@@ -456,8 +475,8 @@ unsigned char Image::GetB_b (Image *This, float x, float y)
     unsigned dx = unsigned ((x - trunc (x)) * 256);
     unsigned dy = unsigned ((y - trunc (y)) * 256);
 
-    RGBpixel *p0 = This->image + yi * This->width + xi;
-    RGBpixel *p1 = p0 + This->width;
+    RGBpixel<T> *p0 = This->image + yi * This->width + xi;
+    RGBpixel<T> *p1 = p0 + This->width;
 
     unsigned k1, k2;
     k1 = 256 * p0 [0].blue  + dx * (int (p0 [1].blue ) - int (p0 [0].blue ));
@@ -465,7 +484,8 @@ unsigned char Image::GetB_b (Image *This, float x, float y)
     return (256 * k1 + dy * (k2 - k1)) >> 16;
 }
 
-void Image::Get_b (Image *This, RGBpixel &out, float x, float y)
+template<class T>
+void Image<T>::Get_b (Image *This, RGBpixel<T> &out, float x, float y)
 {
     // linear interpolation
     unsigned xi = unsigned (x);
@@ -479,8 +499,8 @@ void Image::Get_b (Image *This, RGBpixel &out, float x, float y)
     unsigned dx = unsigned ((x - trunc (x)) * 256);
     unsigned dy = unsigned ((y - trunc (y)) * 256);
 
-    RGBpixel *p0 = This->image + yi * This->width + xi;
-    RGBpixel *p1 = p0 + This->width;
+    RGBpixel<T> *p0 = This->image + yi * This->width + xi;
+    RGBpixel<T> *p1 = p0 + This->width;
 
     unsigned k1, k2;
 
@@ -499,7 +519,8 @@ void Image::Get_b (Image *This, RGBpixel &out, float x, float y)
 
 // --- // Lanczos 2 interpolation // --- //
 
-unsigned char Image::GetR_l (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetR_l (Image *This, float x, float y)
 {
     float xs = rint (x) - LANCZOS_SUPPORT;
     float ys = rint (y) - LANCZOS_SUPPORT;
@@ -508,7 +529,7 @@ unsigned char Image::GetR_l (Image *This, float x, float y)
 
     float norm = 0.0;
     float sum = 0.0;
-    RGBpixel *img = This->image + (long (ys) * This->width + long (xs));
+    RGBpixel<T> *img = This->image + (long (ys) * This->width + long (xs));
 
     if (xs >= 0 && ys >= 0 && xe < This->width && ye < This->height)
         for (; ys <= ye; ys += 1.0)
@@ -558,7 +579,8 @@ unsigned char Image::GetR_l (Image *This, float x, float y)
     return r > 255 ? 255 : r < 0 ? 0 : r;
 }
 
-unsigned char Image::GetG_l (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetG_l (Image *This, float x, float y)
 {
     float xs = rint (x) - LANCZOS_SUPPORT;
     float ys = rint (y) - LANCZOS_SUPPORT;
@@ -567,7 +589,7 @@ unsigned char Image::GetG_l (Image *This, float x, float y)
 
     float norm = 0.0;
     float sum = 0.0;
-    RGBpixel *img = This->image + (long (ys) * This->width + long (xs));
+    RGBpixel<T> *img = This->image + (long (ys) * This->width + long (xs));
 
     if (xs >= 0 && ys >= 0 && xe < This->width && ye < This->height)
         for (; ys <= ye; ys += 1.0)
@@ -617,7 +639,8 @@ unsigned char Image::GetG_l (Image *This, float x, float y)
     return r > 255 ? 255 : r < 0 ? 0 : r;
 }
 
-unsigned char Image::GetB_l (Image *This, float x, float y)
+template<class T>
+T Image<T>::GetB_l (Image *This, float x, float y)
 {
     float xs = rint (x) - LANCZOS_SUPPORT;
     float ys = rint (y) - LANCZOS_SUPPORT;
@@ -626,7 +649,7 @@ unsigned char Image::GetB_l (Image *This, float x, float y)
 
     float norm = 0.0;
     float sum = 0.0;
-    RGBpixel *img = This->image + (long (ys) * This->width + long (xs));
+    RGBpixel<T> *img = This->image + (long (ys) * This->width + long (xs));
 
     if (xs >= 0 && ys >= 0 && xe < This->width && ye < This->height)
         for (; ys <= ye; ys += 1.0)
@@ -676,7 +699,8 @@ unsigned char Image::GetB_l (Image *This, float x, float y)
     return r > 255 ? 255 : r < 0 ? 0 : r;
 }
 
-void Image::Get_l (Image *This, RGBpixel &out, float x, float y)
+template<class T>
+void Image<T>::Get_l (Image *This, RGBpixel<T> &out, float x, float y)
 {
     float xs = rint (x) - LANCZOS_SUPPORT;
     float ys = rint (y) - LANCZOS_SUPPORT;
@@ -687,7 +711,7 @@ void Image::Get_l (Image *This, RGBpixel &out, float x, float y)
     float sumR = 0.0;
     float sumG = 0.0;
     float sumB = 0.0;
-    RGBpixel *img = This->image + (long (ys) * This->width + long (xs));
+    RGBpixel<T> *img = This->image + (long (ys) * This->width + long (xs));
 
     if (xs >= 0 && ys >= 0 && xe < This->width && ye < This->height)
         for (; ys <= ye; ys += 1.0)
