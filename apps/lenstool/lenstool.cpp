@@ -31,6 +31,7 @@ static struct
     const char *Program;
     const char *Input;
     const char *Output;
+    lfPixelFormat PixelFormat;
     int ModifyFlags;
     bool Inverse;
     const char *Lens;
@@ -48,6 +49,7 @@ static struct
     NULL,
     NULL,
     "output.png",
+    LF_PF_U8,
     0,
     false,
     NULL,
@@ -76,6 +78,9 @@ static void DisplayUsage ()
 {
     DisplayVersion ();
     g_print ("\nCommand-line options:\n\n");
+    g_print ("  -p#   --pixForm=#  Use specific internal pixel format. lf_u8 by default\n");
+    g_print ("                     (one of: lf_u8, lf_u16, lf_u32, lf_f32, lf_f64)\n");
+    g_print ("\n");
     g_print ("  -d    --distortion Apply lens distortion\n");
     g_print ("  -g#   --geometry=# Convert image geometry to given (one of:\n");
     g_print ("                     rectilinear,fisheye,panoramic,equirectangular,\n");
@@ -107,6 +112,7 @@ static bool ParseParameters(int argc, char **argv)
 {
     static struct option long_options[] = {
         {"output", required_argument, NULL, 'o'},
+        {"pixForm", no_argument, NULL, 'b'},
         {"distortion", no_argument, NULL, 'd'},
         {"geometry", optional_argument, NULL, 'g'},
         {"tca", no_argument, NULL, 't'},
@@ -130,10 +136,27 @@ static bool ParseParameters(int argc, char **argv)
     opts.Program = argv [0];
 
     int c;
-    while ((c = getopt_long (argc, argv, "o:dg::tvaiS:L:C:c:F:A:D:I:h", long_options, NULL)) != EOF) {
+    while ((c = getopt_long (argc, argv, "o:p:dg::tvaiS:L:C:c:F:A:D:I:h", long_options, NULL)) != EOF) {
         switch (c) {
             case 'o':
                 opts.Output = optarg;
+                break;
+            case 'p':
+                if (smartstreq (optarg, "lf_u8"))
+                    opts.PixelFormat = LF_PF_U8;
+                else if (smartstreq (optarg, "lf_u16"))
+                    opts.PixelFormat = LF_PF_U16;
+                else if (smartstreq (optarg, "lf_u32"))
+                    opts.PixelFormat = LF_PF_U32;
+                else if (smartstreq (optarg, "lf_f32"))
+                    opts.PixelFormat = LF_PF_F32;
+                else if (smartstreq (optarg, "lf_f64"))
+                    opts.PixelFormat = LF_PF_F64;
+                else {
+                    DisplayUsage();
+                    g_print ("\nUnknown internal pixel format `%s'\n", optarg);
+                    return false;
+                }
                 break;
             case 'd':
                 opts.ModifyFlags |= LF_MODIFY_DISTORTION;
